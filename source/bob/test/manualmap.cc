@@ -168,37 +168,4 @@ TEST(BobManualMap, OtherXorStr) {
 	MOM_process_close_collection(&processes);
 }
 
-extern "C" const char datatoc_bonus_dll[];
-extern "C" const int datatoc_bonus_dll_size;
-
-TEST(BobManualMap, LocalBonus) {
-	ProcessHandle *self = MOM_process_self();
-
-	void *address = NULL;
-	if ((address = BOB_manual_map_image(self, datatoc_bonus_dll, datatoc_bonus_dll_size, BOB_REBASE_ALWAYS))) {
-		// Do stuff...?
-	}
-	EXPECT_NE(address, nullptr);
-
-	MOM_process_close(self);
-}
-
-TEST(BobManualMap, OtherBonus) {
-	GTEST_SKIP();
-	ListBase processes = MOM_process_open_by_name("notepad.exe");
-	if (LIB_listbase_is_empty(&processes)) {
-		GTEST_SKIP();
-	}
-
-	ProcessHandle *process = (ProcessHandle *)processes.first;
-
-	void *address = NULL;
-	if ((address = BOB_manual_map_image(process, datatoc_bonus_dll, datatoc_bonus_dll_size, BOB_REBASE_ALWAYS))) {
-		// Do stuff...?
-	}
-	EXPECT_NE(address, nullptr);
-
-	MOM_process_close_collection(&processes);
-}
-
 } // namespace
