@@ -6,11 +6,11 @@
 
 # Portable Executable Loader
 
-Executables sometimes use dynamically linked libraries (DLLs) in order to overwrite functionality of a given application. These portable executables are nothing more than a sequence of ASM instructions and headers, they are mapped into the remote application memory and then their DllMain is called. The remote thread is then terminated and the loader exists. The portable executable is responsible for attaching in the remote application.
+The operation is usually refered to as DLL Injection although the technique is manual mapping of the DLL to a remote process.
 
 # How it Works
 
-Bob *builds* a remote thread and attaches a triggerable loop that can execute APC code. Each operation that needs to be run remotely on the target process is queued and run through that single thread using Just In Time, Assembly compilation!
+The DLL main is triggered by a remote thread created on the target application after mapping all the sections into memory and triggering necessary procedures for Thread Local storage and initializers.
 
 # Build
 
