@@ -28,7 +28,7 @@ cmake -G "Virtual Studio 17 2022" /path/to/src
 
 # Preview
 
-[image](https://i.imgur.com/XW7HoY5.png)
+![Demo](https://i.imgur.com/XW7HoY5.png)
 
 # Contribute
 
