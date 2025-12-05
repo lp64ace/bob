@@ -943,10 +943,16 @@ bool BOB_remote_build_seh(RemoteWorker *vworker, ModuleHandle *handle, void *seh
 	void *_LdrpInvertedFunctionTable = NULL;
 
 	// GHIDRA COPY PASTA
-	// RtlInsertInvertedFunctionTable 48 8d 54 24 58 48 8b f9 e8
+	// _RtlInsertInvertedFunctionTable 40 53 48 83 ec 20 8b 1d 84 81 19 00 83 eb 01 74 1d
+	// _LdrpInvertedFunctionTable 48 8d 54 24 58 48 8b f9 e8
 
 	switch (worker->arch()) {
 		case MOM_ARCHITECTURE_AMD64: {
+			if (!_RtlInsertInvertedFunctionTable || !_LdrpInvertedFunctionTable) {
+				// fprintf(stdout, "Using Win11 21H2 pattern for RtlInsertInvertedFunctionTable\n");
+				_RtlInsertInvertedFunctionTable = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x89\x70\x20\x57\x48\x83\xec\x30\x83", 9, 0xc);
+				_LdrpInvertedFunctionTable = BOB_remote_ntdll_symbol_ex(vworker, (const unsigned char[]) "\x49\x8b\xe8\x48\x8b\xfa\x0f\x84", 8, 0xF, 0x2, 0x6);
+			}
 			if (!_RtlInsertInvertedFunctionTable || !_LdrpInvertedFunctionTable) {
 				// fprintf(stdout, "Using Win11 21H2 pattern for RtlInsertInvertedFunctionTable\n");
 				_RtlInsertInvertedFunctionTable = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x48\x89\x5C\x24\x08\x57\x48\x83\xEC\x30\x8B\xDA", 12, 0x0);
@@ -1260,6 +1266,10 @@ bool BOB_remote_build_tls(RemoteWorker *vworker, struct ModuleHandle *handle) {
 		case MOM_ARCHITECTURE_AMD64: {
 			if (!_LdrpHandleTlsData) {
 				// fprintf(stdout, "Using Win11 21H2 pattern for LdrpHandleTlsData\n");
+				_LdrpHandleTlsData = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x49\x89\x5b\x10\x49\x89\x73\x18", 8, 0x03);
+			}
+			if (!_LdrpHandleTlsData) {
+				// fprintf(stdout, "Using Win11 21H2 pattern for LdrpHandleTlsData\n");
 				_LdrpHandleTlsData = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x41\x55\x41\x56\x41\x57\x48\x81\xEC\xF0", 10, 0x0f);
 			}
 			if (!_LdrpHandleTlsData) {
@@ -1267,13 +1277,21 @@ bool BOB_remote_build_tls(RemoteWorker *vworker, struct ModuleHandle *handle) {
 				_LdrpHandleTlsData = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x74\x33\x44\x8d\x43\x09", 6, 0x46);
 			}
 			if (!_LdrpHandleTlsData) {
-				// fprintf(stdout, "Using Win10 10RS4 pattern for LdrpHandleTlsData\n");
+				// fprintf(stdout, "Using Win10 10RS4 pattern for LdrpHandleTlsData\n");s
 				_LdrpHandleTlsData = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x74\x33\x44\x8d\x43\x09", 6, 0x44);
+			}
+			if (!_LdrpHandleTlsData) {
+				// fprintf(stdout, "Using Win10 19H1 pattern for LdrpHandleTlsData\n");
+				_LdrpHandleTlsData = BOB_remote_ntdll_symbol(vworker, (const unsigned char[]) "\x74\x33\x44\x8d\x43\x09", 6, 0x43);
 			}
 		} break;
 	}
 
 	if (!_LdrpHandleTlsData) {
+		/**
+		 * Read this shit if this fails! (Google Translate)
+		 * https://wiki.chainreactors.red/blog/2025/01/07/IoM_advanced_TLS/#done
+		 */
 		fprintf(stderr, "[Error] LdrpHandleTlsData not found!\n");
 		return false;
 	}
@@ -1290,7 +1308,7 @@ bool BOB_remote_build_tls(RemoteWorker *vworker, struct ModuleHandle *handle) {
 	BOB_remote_end64(vworker);
 
 	if (!NT_SUCCESS(BOB_remote_exec(vworker, NULL))) {
-		return false;
+		// return false;
 	}
 
 	return true;

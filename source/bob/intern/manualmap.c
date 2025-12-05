@@ -352,21 +352,6 @@ void *BOB_manual_map_module(ProcessHandle *process, ModuleHandle *handle, int fl
 		}
 	}
 
-#if 0
-	void *copy = malloc(MOM_module_size(handle));
-	MOM_process_read(process, real, copy, MOM_module_size(handle));
-
-	fprintf(stdout, "\n");
-	for (size_t i = 0; i < MOM_module_size(handle); i++) {
-		if (i == 0 || (i % 16) == 0) {
-			fprintf(stdout, "\n0x%p ", (void *)POINTER_OFFSET(real, i));
-		}
-		fprintf(stdout, "%02x ", *(const unsigned char *)POINTER_OFFSET(copy, i));
-	}
-	fprintf(stdout, "\n");
-	free(copy);
-#endif
-
 	// fprintf(stdout, "[BOB] Manifest -----------------------------------------------------------------\n");
 	// fprintf(stdout, "%s", (const char *)MOM_module_manifest_logical(handle));
 	// fprintf(stdout, "[BOB] Manifest END--------------------------------------------------------------\n");
