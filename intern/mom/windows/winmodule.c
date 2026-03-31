@@ -6,6 +6,11 @@
 #include "mom.h"
 #include "winmom.h" // Keep last!
 
+#include <pathcch.h>
+#include <shlwapi.h>
+
+#pragma comment(lib, "Shlwapi.lib")
+
 #define DOS(handle) ((IMAGE_DOS_HEADER *)(handle->image))
 #define NT32(handle) ((IMAGE_NT_HEADERS32 *)POINTER_OFFSET(handle->image, DOS(handle)->e_lfanew))
 #define NT64(handle) ((IMAGE_NT_HEADERS64 *)POINTER_OFFSET(handle->image, DOS(handle)->e_lfanew))
@@ -720,19 +725,87 @@ ListBase winmom_module_open_by_file(const char *name) {
 			LIB_addtail(&list, handle);
 		}
 	}
+	LIB_freelistN(&schema);
 
-	ModuleHandle *module = NULL;
+	if (GetFileAttributes(name) != 0xFFFFFFFF) { // qualified name
+		LIB_addtail(&list, winmom_module_open_by_file_from_disk(name));
+	}
 
-	if (!(module = winmom_module_open_by_file_from_disk(name))) {
-		// Try to load from relative path
-		CHAR buffer[MAX_PATH];
-		if (SearchPathA(NULL, name, NULL, MAX_PATH, buffer, NULL)) {
-			LIB_addtail(&list, winmom_module_open_by_file_from_disk(buffer));
+	if (!LIB_listbase_is_empty(&list)) {
+		return list;
+	}
+
+	const char *filename = PathFindFileName(name);
+
+	{
+		HKEY key;
+		if (RegOpenKey(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\KnownDLLs", &key) == NO_ERROR) {
+			CHAR value[MOM_MAX_DLLNAME_LEN];
+			CHAR data[MOM_MAX_DLLNAME_LEN];
+
+			DWORD size = ARRAYSIZE(value), type = 0;
+			for (DWORD index = 0; RegEnumValue(key, index, value, &size, NULL, &type, data, &size) == NO_ERROR; index++) {
+				size = ARRAYSIZE(value);
+
+				if (strcmp(data, filename) == 0) {
+					CHAR system[MOM_MAX_DLLNAME_LEN];
+					GetSystemDirectory(system, ARRAYSIZE(system));
+
+					strcpy(value, system);
+					strcat(value, "\\");
+					strcat(value, data);
+
+					LIB_addtail(&list, winmom_module_open_by_file_from_disk(value));
+				}
+			}
 		}
 	}
-	LIB_addtail(&list, module);
 
-	LIB_freelistN(&schema);
+	if (!LIB_listbase_is_empty(&list)) {
+		return list;
+	}
+
+	{
+		CHAR value[MOM_MAX_DLLNAME_LEN];
+		CHAR data[MOM_MAX_DLLNAME_LEN];
+
+		GetCurrentDirectory(ARRAYSIZE(data), data);
+		strcpy(value, data);
+		strcat(value, "\\");
+		strcat(value, filename);
+
+		if (GetFileAttributes(value) != 0xFFFFFFFF) { // qualified name
+			LIB_addtail(&list, winmom_module_open_by_file_from_disk(value));
+		}
+	}
+
+	if (!LIB_listbase_is_empty(&list)) {
+		return list;
+	}
+
+	{
+		CHAR *data = MEM_mallocN(0x1000, "PATH");
+		CHAR value[MOM_MAX_DLLNAME_LEN];
+
+		char *ctx = NULL;
+
+		GetEnvironmentVariable("PATH", data, 0x1000);
+		for (char *dir = strtok_s(data, ";", &ctx); dir; dir = strtok_s(ctx, L";", &ctx)) {
+			strcpy(value, dir);
+			strcat(value, "\\");
+			strcat(value, filename);
+
+			if (GetFileAttributes(value) != 0xFFFFFFFF) { // qualified name
+				LIB_addtail(&list, winmom_module_open_by_file_from_disk(value));
+			}
+		}
+
+		MEM_freeN(data);
+	}
+
+	if (!LIB_listbase_is_empty(&list)) {
+		return list;
+	}
 
 	return list;
 }
